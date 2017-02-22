@@ -1,13 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
-    <script type="text/babel" >
-        "use strict";
+  <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="text/babel" >
     
-    </script>
+    ()=> { //IIFE
+    
+      "use strict";   
+      let ctx;    
+      let socket;    
+      let draws = {};
+      let canvas;
+      
+      const user = `user${Math.floor(Math.random()*1000)+1}`;
+      
+      const draw = () => {
+      ctx.clearRect(0,0, canvas.width, canvas.height);
+      
+      let keys = Object.keys(draws);
+      
+      for(let i = 0; i<keys.length; i++){
+        const drawCall = draws[keys[i]];
+        ctx.fillStyle = drawCall.color;
+        ctx.fillRect(drawCall.x-drawCall.width/2,drawCall.y-drawCall.height/2,drawCall.width, drawCall.height);
+      }
+    };
+      
+/*    const setCalls = (socket, mouse) => { 
+      let time = new Date().getTime();
+      let coords ={x:mouse.x,y:mouse.y,width:100,height:100, color:"#225599"};// change to mouse coords 
+      
+//      time = new Date().getTime();
+//      let coords = {x:0,y:0,width:100,height:100};
+  
+      socket.emit('draw', {time:time, coords: coords});
+      
+      handleMessage({time:time, coords: coords});
+    }*/
+    
+    const handleMessage = (data) => { //draws boxs that other peeps drew
+      //draws[data.time]=data.coords;
+      
+      if(!draws[data.name]){
+        
+        draws[data.name] = data.coords;
+        
+      } else if (data.coords.lastUpdate > draws[data.name].lastUpdate){      
+        draws[data.name] = data.coords;
+      }
+      
+      draw();//redraw after updates
+    }    
+    
+    const setup = () =>{
+      const time = new Date().getTime();
+      let x = Math.floor(Math.random()*(300-10)+10);//random x position
+      let y = Math.floor(Math.random()*(300-10)+10);//random y position
+      draws[user] = {lastUpdate:time,x:x,y:y,width:100,height:100,color:'black'};
+      
+      setInterval( () => {
+        const time = new Date().getTime();
+        draws[user].lastUpdate = time;
+        draws[user].x += 5;
+        socket.emit( 'draw',{name:user,coords:draws[user]});
+        draw();
+      },3000);
+    }
+    
+    //INIT
+    const init = () =>{//oh shit whaddup
+      socket = io.connect();
+      canvas = document.querySelector("#canvas");
+      ctx = canvas.getContext("2d");
+      
+      //CONNECT      
+      socket.on('connect', () => {
+        socket.emit('join');
+        
+        setup();
+       
+        /*document.querySelector("#canvas").addEventListener('click', (e)=>{
+          setCalls(socket, e);//sorta
+        })*/
+        
+//        socket.on('clear', ()=>{
+//          ctx.clearRect(0,0, canvas.width, canvas.height);
+//          draws = {};
+//        });
+//        
+//        document.querySelector("#clearButton").addEventListener('click', ()=> {
+//          socket.emit('clearToServer');
+//        });
+      });
+              socket.on('updateDraw', (data)=>{
+          handleMessage(data);
+        });
+    };
+    //reach inside and you will find a special friend and a boy
+    window.onload = init;  
+  }();//END IIFE
+  </script>
+  <style>
+    #canvas{
+      background-color: #99bbee;
+    }
+  </style>
 </head>
 <body>
-
+<canvas id="canvas" height="500" width="1000">Please use an HTML 5 browser</canvas>
+<!--<input id="clearButton" type="button" value="clear">-->
 </body>
 </html>
